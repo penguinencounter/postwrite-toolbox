@@ -68,7 +68,7 @@ The relevant repositories (all under the `FiguraMC` org) are:
 - `figura-core`
 - `figura-client`
 
-## on Linux and maybe MacOS
+### on Linux and maybe MacOS
 A setup script exists to guide you through the installation process. Download and run the `setup` file from this repository.
 - If necessary, give yourself execute permissions on the script (`chmod +x setup`), then run it (`./setup`)
 - When asked to clone a fork, choose **yes** (`y`)
