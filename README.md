@@ -1,7 +1,7 @@
 # postwrite-toolbox
 Community tools for Figura 1.0 development.
 
-## Testing (not developing) Figura 1.0
+## Testing Figura 1.0
 Before starting, you'll need:
 - A JDK 21 installation somewhere
   - You'll be prompted to enter the location of the JDK (the value that `JAVA_HOME` would have); this is _not_ the location of `java`, but the folder that contains `bin`, `conf`, `include` etc
