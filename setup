@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+
+# FORMATTING
+RST=$(printf '\e[0m')
+f_RED=$(printf '\e[31m')
+f_GRN=$(printf '\e[32m')
+f_CYAN=$(printf '\e[36m')
+s_BOLD=$(printf '\e[1m')
+s_NOT_BOLD=$(printf '\e[22m')
+
+# HELPERS
+
+die() {
+    echo "$f_RED$1$RST"
+    exit 1
+}
+
+actual() {
+    local x
+    x=$1
+    x="${x/#\~/$HOME}"
+    realpath -s "$x"
+}
+
+lower() {
+    echo "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+prompt() {
+    if [ -z "$2" ]; then
+        printf "%s" "$f_GRN$s_BOLD$1$s_NOT_BOLD $f_RED* $f_CYAN" 1>&2
+    else
+        printf "%s" "$f_GRN$s_BOLD$1$s_NOT_BOLD [$2] $f_CYAN" 1>&2
+    fi
+
+    IFS= read -r result
+    printf "%s" "$RST" 1>&2
+    if [ -z "$result" ]; then echo "$2";
+    else echo "$result"; fi
+}
+
+yn() {
+    local RESULT
+    RESULT=
+    while [ "$RESULT" != "y" ] && [ "$RESULT" != "n" ]; do
+        RESULT=$(lower "$(prompt "$1" "$2")")
+    done
+    echo "$RESULT"
+}
+
+_srcurl() {
+    prompt "Enter clone URL for $1"
+}
+
+get_remotes() {
+    local non_default
+    local client
+    local core
+    local cobalt
+    local molang
+    local translations
+    local memory
+
+    local use_pattern
+    local pattern
+    non_default=$(yn "Want to clone a fork?" "n")
+
+    if [ "$non_default" == "y" ]; then
+        use_pattern=$(yn "Do your repositories have the same names as the upstream ones?" "y")
+        if [ "$use_pattern" == "y" ]; then
+            pattern="$(prompt "Enter clone source (type $f_RED@@$f_GRN where the repository name goes)")"
+        else
+            client=$(_srcurl figura-client)
+            core=$(_srcurl figura-core)
+            cobalt=$(_srcurl figura-cobalt)
+            molang=$(_srcurl figura-molang)
+            translations=$(_srcurl figura-translations)
+            memory=$(_srcurl memory-tracker)
+        fi
+    else
+        use_pattern=y
+        pattern="https://github.com/FiguraMC/@@.git"
+    fi
+
+    if [ "$use_pattern" == "y" ]; then
+        client=${pattern//@@/figura-client}
+        core=${pattern//@@/figura-core}
+        cobalt=${pattern//@@/figura-cobalt}
+        molang=${pattern//@@/figura-molang}
+        translations=${pattern//@@/figura-translations}
+        memory=${pattern//@@/memory-tracker}
+    fi
+    
+    printf "%s;" "$non_default"
+    printf "%s;" "$client"
+    printf "%s;" "$core"
+    printf "%s;" "$cobalt"
+    printf "%s;" "$molang"
+    printf "%s;" "$translations"
+    printf "%s;" "$memory"
+}
+
+get_target() {
+    out_path_raw=$(prompt "Where do you want the repositories?" ".")
+    out_path=$(actual "$out_path_raw")
+    echo "$f_GRN  resolved path $RST$out_path" 1>&2
+    mkdir -p "$out_path" || die "Failed to create directory"
+    echo "$out_path"
+}
+
+remote=$(get_remotes)
+IFS=';' read -r non_default client core cobalt molang translations memory <<< "$remote"
+
+client_name="figura-client"
+core_name="figura-core"
+cobalt_name="figura-cobalt"
+molang_name="figura-molang"
+translations_name="figura-translations"
+memory_name="memory-tracker"
+
+target=$(get_target)
+
+clone() {
+    # CLONE_URL DIR_NAME UPSTREAM_URL
+    local out
+    out="$target/$2"
+    git clone "$1" "$out"
+    if [ "$non_default" == "y" ]; then
+        git -C "$out" remote add upstream "$3"
+    fi
+}
+
+echo "$f_GRN${s_BOLD}Starting clone now.$RST"
+for subject in client core cobalt molang translations memory; do
+    subject_name="${subject}_name"
+    echo "${!subject} $subject / ${!subject_name} $subject_name"
+
+    clone "${!subject}" "${!subject_name}" "https://github.com/FiguraMC/${!subject_name}.git" &
+done
+wait
+
+DEFAULT_JDK="$JAVA_HOME"
+
+get_jdk() {
+    local java
+    java=
+    while [ -z "$java" ]; do
+        local proposed
+        local jc
+        proposed=$(actual "$(prompt "JDK 21 path:" "$DEFAULT_JDK")")
+        jc="$proposed/bin/javac"
+        if $jc -version 1>&2; then
+            local ok
+            ok=$(yn "is this correct?" "y")
+            if [ "$ok" == "y" ]; then
+                java=$proposed
+            fi
+        fi
+    done
+    echo "$java"
+}
+
+java=$(get_jdk)
+export JAVA_HOME="$java"
+
+# Configure projects
+pub() {
+    echo "$f_GRN${s_BOLD}Initial publish: project $2: $f_CYAN$1$RST"
+    # [path] [gradlew]
+    local gradle_path
+    gradle_path=$3
+    if [ -z "$3" ]; then
+        gradle_path=$1
+    fi
+    cd "$target/$1" && bash "$target/$gradle_path/gradlew" publishToMavenLocal
+}
+
+# Set up projects
+( pub $memory_name 1 ) || die "Failed to build memory"
+( pub $translations_name 2 ) || die "Failed to build translations"
+( pub $molang_name 3 ) || die "Failed to build molang"
+
+# cobalt why
+( pub "$cobalt_name/cobalt-build-tools" 4 $cobalt_name ) || die "Failed to build cobalt/tools"
+( pub $cobalt_name 5 ) || die "Failed to build cobalt"
+
+( pub $core_name 6 ) || die "Failed to build core"
+
+# Configure client
+echo "$f_GRN${s_BOLD}Configuring client...$RST"
+( cd "$target/$client_name" && bash "$target/$client_name/gradlew" help ) || die "Failed to build client"
