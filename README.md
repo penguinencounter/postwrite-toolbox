@@ -55,3 +55,37 @@ Set up the projects in this order:
 Then, to check that everything worked without running the game, get Gradle to configure the `figura-client` project with `./gradlew help`.
 
 After following those steps, you should be good to go! Run `./gradlew runClient` in `figura-client` to start the game.
+
+## Developing on Figura 1.0
+Before starting, you'll need the same things as in the previous section (JDK 21 and `git`)
+
+You'll probably also want to **create forks of all the repositories**. The setup script will make your life quite a bit easier if you don't rename the repositories.
+The relevant repositories (all under the `FiguraMC` org) are:
+- `memory-tracker`
+- `figura-translations`
+- `figura-molang`
+- `figura-cobalt`
+- `figura-core`
+- `figura-client`
+
+## on Linux and maybe MacOS
+A setup script exists to guide you through the installation process. Download and run the `setup` file from this repository.
+- If necessary, give yourself execute permissions on the script (`chmod +x setup`), then run it (`./setup`)
+- When asked to clone a fork, choose **yes** (`y`)
+    - Follow the prompts. The rest of this tutorial assumes you kept the name of the repositories the same. If you did that, choose **yes** (`y`) when asked about the names.
+    - When asked to `Enter clone source (type @@ where the repository name goes)`:
+        - Get the clone URL of one of your repositories (for example, `https://github.com/penguinencounter/figura-core.git`)
+        - Replace the name of the repository in that url with two at-signs (ex. `https://github.com/penguinencounter/@@.git`)
+        - Enter that into the script
+- Enter a path to clone to.
+    - Wait a bit for the clone to finish
+- Enter the path to the JDK you found earlier.
+    - The script will output the version of `javac` it found. Make sure this is correct.
+- Wait a bit longer for all the repositories to be set up and compiled for the first time.
+- Open `figura-client` and/or `figura-core` in IntelliJ IDEA or your favorite other IDE and start developing.
+    - Note: the script also creates the `upstream` remote automatically in each repository.
+
+### on other operating systems (aka Windows)
+You'll have to set up the repositories yourself.
+
+Follow the instructions for testing above, but use your own repositories instead of the upstream ones. The process is generally the same.
